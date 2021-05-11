@@ -48,8 +48,9 @@
                                     </button>
                                 </div>
 
-                                <div class="email-menu-list mt-3" >
-                                    <a href="javascript: void(0);" v-for="(mail,index) in all" class="fw-bold" @click="choose(index)">
+                                <div class="email-menu-list mt-3"  v-if="!isEmpty()">
+                                    <a href="javascript: void(0);" v-for="(mail,index) in all" class="fw-bold"
+                                       @click="choose(index)">
                                         <i class="bi-envelope me-2"></i>{[ mail.subject ]}
                                     </a>
                                 </div>
@@ -59,7 +60,7 @@
 
                             <div class="page-aside-right">
 
-                                <div class="mt-3">
+                                <div class="mt-3"  v-if="!isEmpty()">
                                     <h5 class="font-18">{[ all[selected].subject ]}</h5>
 
                                     <hr>
@@ -69,8 +70,8 @@
                                              src="https://coderthemes.com/hyper/saas/assets/images/users/avatar-2.jpg"
                                              alt="placeholder image" height="32">
                                         <div class="w-100 overflow-hidden">
-                                            <small class="float-end">through: {[ all[selected].through ]}</small>
-                                            <h6 class="m-0 font-14">{[ all[selected].send_to ]}</h6>
+                                            <small class="float-end">SMTP Server: {[ all[selected].smtp_server ]} Port: {[ all[selected].smtp_port ]}</small>
+                                            <h6 class="m-0 font-14">To: {[ all[selected].send_to ]}</h6>
                                             <small class="text-muted">From: {[ all[selected].mail ]}</small>
                                         </div>
                                     </div>
@@ -104,18 +105,54 @@
                 </div>
                 <div class="p-1">
                     <div class="modal-body px-3 pt-3 pb-0">
+                        <div class="btn-group btn-group-sm mb-2">
+                            <button type="button" class="btn" @click="send_way=0">Default</button>
+                            <button type="button" class="btn" @click="send_way=1">Custom</button>
+                            <button type="button" class="btn" @click="send_way=2">Send Local</button>
+                        </div>
                         <form id="mail-form">
-                            <div class="mb-2 form-group">
-                                <label for="send-to" class="form-label">To</label>
-                                <input type="text" name="mail-to" class="form-control" placeholder="Example@email.com">
+                            <div class="mb-2 form-group" v-if="send_way!=0">
+                                    <label for="mail-from" class="form-label">From</label>
+                                    <input type="text" name="mail-from" class="form-control"
+                                            placeholder="Example@email.com">
                             </div>
+
+                            <span v-if="send_way==1">
+                                <div class="form-group mb-2">
+                                    <label for="mail-code" class="form-label">Password</label>
+                                    <input type="password" name="mail-code" class="form-control">
+                                </div>
+
+                                <div class="form-group mb-2">
+                                    <label for="mail-code" class="form-label">SMTP Server</label>
+                                    <input type="text" name="smtp-server" class="form-control"
+                                           placeholder="smtp.example.com">
+                                </div>
+
+                                <div class="form-group mb-2">
+                                    <label for="mail-code" class="form-label">Port</label>
+                                    <input type="text" name="smtp-port" class="form-control"
+                                           placeholder="25">
+                                </div>
+
+                            </span>
+
+                            <div class="mb-2 form-group" v-if="send_way!=2">
+                                <label for="mail-to" class="form-label">To</label>
+                                <input type="text" name="mail-to" class="form-control"
+                                       placeholder="Example@email.com">
+                            </div>
+
                             <div class="form-group mb-2">
                                 <label for="mail-subject" class="form-label">Subject</label>
-                                <input type="text" name="mail-subject" class="form-control" placeholder="Your subject">
+                                <input type="text" name="mail-subject" class="form-control"
+                                       placeholder="Your subject">
                             </div>
+
                             <div class="form-group mb-3">
-                                <label class="form-label">Message</label>
-                                <textarea class="form-control" rows="5" name="mail-content"></textarea>
+                                <label class="mail-content">Message</label>
+                                <textarea class="form-control" rows="5" name="mail-content"
+                                          placeholder="Write something here..."></textarea>
                             </div>
                         </form>
                     </div>
@@ -133,35 +170,6 @@
 </body>
 
 <script>
-    function sendMail() {
-        var form = $('#mail-form');
-        $.ajax({
-            type: "POST",
-            url: "/send_default",
-            data: form.serialize(),
-            dataType: "json",
-            success: function (data) {
-                if (data === "SUCCESS") {
-                    $(location).prop('href', '/');
-                }
-            }
-        })
-    }
-
-    vue_main = new Vue({
-        delimiters: ['{[', ']}'],
-        el: '#main-body',
-        data: {
-            all: [],
-            selected : 0
-        },
-        methods: {
-            choose(index) {
-                this.selected = index
-            }
-        }
-    })
-
     $(
         function () {
             $.ajax({
@@ -169,11 +177,78 @@
                 url: "/get_sent_mail",
                 dataType: 'json',
                 success: function (result) {
-                    vue_main.$data.all = result
+                    vue_main.$data.all = result.reverse()
                 }
             });
         }
     )
+
+    vue_main = new Vue({
+        delimiters: ['{[', ']}'],
+        el: '#main-body',
+        data: {
+            all: [],
+            selected: 0
+        },
+        methods: {
+            choose: function (index) {
+                this.selected = index
+            },
+            isEmpty: function() {
+                return this.all.length === 0;
+            }
+        }
+    })
+
+    vue_send = new Vue({
+        delimiters: ['{[', ']}'],
+        el: '#send-modal',
+        data: {
+            send_way: 0
+        }
+    })
+
+    function sendMail() {
+        var form = $('#mail-form');
+        if (vue_send.$data.send_way === 0) {
+            $.ajax({
+                type: "POST",
+                url: "/send_default",
+                data: form.serialize(),
+                dataType: "json",
+                success: function (data) {
+                    if (data === "SUCCESS") {
+                        $(location).prop('href', '/');
+                    }
+                }
+            })
+        } else if (vue_send.$data.send_way === 1) {
+            $.ajax({
+                type: "POST",
+                url: "/send_custom",
+                data: form.serialize(),
+                dataType: "json",
+                success: function (data) {
+                    if (data === "SUCCESS") {
+                        $(location).prop('href', '/');
+                    }
+                }
+            })
+        } else {
+            $.ajax({
+                type: "POST",
+                url: "/send_to_myself",
+                data: form.serialize(),
+                dataType: "json",
+                success: function (data) {
+                    if (data === "SUCCESS") {
+                        $(location).prop('href', '/');
+                    }
+                }
+            })
+        }
+
+    }
 </script>
 
 

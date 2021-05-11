@@ -3,6 +3,7 @@ from sendmail import *
 import json
 
 app = Flask(__name__, static_folder='static')
+ServerFlag = False
 
 @app.route('/')
 def index():
@@ -18,18 +19,21 @@ def send_default():
 @app.route('/send_custom', methods=['POST'])
 def send_custom():
     data = request.form
-    Mail(subject=data['mail-subject'], msg=data['mail-content'], send_to=data['mail-to'], mail=data['mail'],
-             pass_code=data['pass_code'], through=data['through']).SendMail().Save()
+    Mail(subject=data['mail-subject'], msg=data['mail-content'], send_to=data['mail-to'], mail=data['mail-from'],
+             pass_code=data['mail-code'], smtp_server=data['smtp-server'], smtp_port=data['smtp-port']).SendMail().Save()
     return json.dumps("SUCCESS")
 
 
 @app.route('/send_to_myself', methods=['POST'])
 def send_to_myself():
-    pass
+    data = request.form
+    Mail(subject=data['mail-subject'], msg=data['mail-content'], send_to="Local Smtp Server", mail=data['mail-from'],
+         pass_code='', smtp_server='LocalHost', smtp_port='25').SendLocal().Save()
+    return json.dumps("SUCCESS")
 
 @app.route('/get_sent_mail', methods=['POST'])
 def get_sent_mail():
-    fp = open(r'E:\mail.txt', 'r', encoding='utf-8')
+    fp = open(r'Mail.txt', 'r', encoding='utf-8')
     mail_list = []
     m = fp.readline()
     while m is not '':
